@@ -1,11 +1,14 @@
-# gid2tec
+#!/bin/bash
 #
 # Convert GiD files (*.msh and *.res) to Tecplot 360 files (*.dat)
+#
 # written by Guillaume De Nayer
 #
-#
-# In order to use the tool:
+# USAGE:
 # copy the matlab file 'gid2tec.m' into the default matlab path.
 # Then, run:
-gid2tec basename
+# gid2tec basename
 # where 'basename' is the name of the GiD files without the .msh and res suffixes.
+echo "Converting GiD files \"" $1 "\" into Tecplot 360 files..."
+matlab -nojvm -batch "gid2tec('$1')"
+echo "DONE."
