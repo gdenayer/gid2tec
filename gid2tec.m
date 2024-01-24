@@ -125,6 +125,20 @@ block = regexp(block{1},stringSeparator,'split');
 % delete first index of 'block'
 block(1) = [];
 nressection=size(block,2);
+% look for the maximum number of step
+resblock = regexp(block{end},'Values','split');
+% extract info about the quantity in the current result section
+% The delimiter has to be " for the case with variables including spaces
+resblock_info=strsplit(resblock{1},'"');
+resblock_info(1)=[];
+outputQuantity_name=resblock_info{1};
+% remove " from the name of quantity
+outputQuantity_name=erase(outputQuantity_name,'"');
+% replace whitespace with underscore
+outputQuantity_name=regexprep(outputQuantity_name, ' ', '_');
+resblock_info2=strsplit(resblock_info{4});
+resblock_info2(1)=[];
+ntotstep=str2num(resblock_info2{1})
 % initialize for Tecplot file
 nbquantityperstep=0;
 outputQuantity_step_old=0;
@@ -182,7 +196,7 @@ for ires=1:nressection
             fprintf('\t>>   Flush the previous data in a Tecplot file....\n');
             writeData2plt(basename,nameFileMshInfo,outputQuantity_step_old, ...
                 outputQuantity,headersMsh_Nnode,num_nodes, ...
-                num_elements,msh,nbquantityperstep)
+                num_elements,msh,nbquantityperstep,ntotstep)
         end
         nbquantityperstep=1;
     else
@@ -236,14 +250,14 @@ end
 fprintf('\t>>   Flush the last step in a Tecplot file....\n');
 writeData2plt(basename,nameFileMshInfo,outputQuantity_step_old, ...
     outputQuantity,headersMsh_Nnode,num_nodes, ...
-    num_elements,msh,nbquantityperstep)
+    num_elements,msh,nbquantityperstep,ntotstep)
 return
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function writeData2plt(basename,nameFileMshInfo,outputQuantity_step_old, ...
     outputQuantity,headersMsh_Nnode,num_nodes, ...
-    num_elements,msh,nbquantityperstep)
+    num_elements,msh,nbquantityperstep,ntotstep)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% write data into tecplot files
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -251,11 +265,13 @@ function writeData2plt(basename,nameFileMshInfo,outputQuantity_step_old, ...
 fieldwidth=20;
 sigfigures=10;
 numformat = strcat('%',num2str(fieldwidth),'.',num2str(sigfigures),'e');
+% use a fixed length format for the step in the tecplot file
+stepformat=strcat('%0',num2str(numel(num2str(ntotstep))),'d');
 breaklineCharNum = 4000;
 dotlocation = find(nameFileMshInfo =='.');
 %
 %% create the name of the tecplot file for the step and open it
-nameFileMeshInfo_tecplot = strcat(nameFileMshInfo(1:dotlocation(end)-1),'_step_',num2str(outputQuantity_step_old),'.dat');
+nameFileMeshInfo_tecplot = strcat(nameFileMshInfo(1:dotlocation(end)-1),'_step_',num2str(outputQuantity_step_old,stepformat),'.dat');
 fileID = fopen(nameFileMeshInfo_tecplot,'w');
 %
 %% create the headers of the tecplot file
