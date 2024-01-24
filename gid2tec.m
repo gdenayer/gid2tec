@@ -65,17 +65,19 @@ msh.nodes = cell2mat(out);
 msh.nodes = [msh.nodes(:,2:end) msh.nodes(:,1)]; % swap node ID to the last column
 num_nodes = length(msh.nodes);
 fprintf('DONE\n');
+
+% NOT NEEDED if nodeID are passed to tecplot file in combination with NV=4:
 % tecplot seems to have some problem with the nodeID of FASTEST.
 % The following reattributes an nodeID, which corresponds to the line in
 % the msh file.
-fprintf('\t>> Reformating the nodeIDs...');
-maxNodeID=max(msh.nodes(:,4));
-msh.nodeID2nodeLine=zeros(maxNodeID,1);
-for i=1:num_nodes
-    msh.nodeID2nodeLine(msh.nodes(i,4))=i;
-end
-fprintf('DONE\n');
-%
+% fprintf('\t>> Reformating the nodeIDs...');
+% maxNodeID=max(msh.nodes(:,4));
+% msh.nodeID2nodeLine=zeros(maxNodeID,1);
+% for i=1:num_nodes
+%     msh.nodeID2nodeLine(msh.nodes(i,4))=i;
+% end
+% fprintf('DONE\n');
+
 % Get the elements of the mesh
 fprintf('\t>> Reading the elements of the mesh...\n');
 stringSeparator = 'Elements';
@@ -138,7 +140,7 @@ outputQuantity_name=erase(outputQuantity_name,'"');
 outputQuantity_name=regexprep(outputQuantity_name, ' ', '_');
 resblock_info2=strsplit(resblock_info{4});
 resblock_info2(1)=[];
-ntotstep=str2num(resblock_info2{1})
+ntotstep=str2num(resblock_info2{1});
 % initialize for Tecplot file
 nbquantityperstep=0;
 outputQuantity_step_old=0;
@@ -278,20 +280,28 @@ fileID = fopen(nameFileMeshInfo_tecplot,'w');
 list_tecplot_var = strjoin(outputQuantity.varname,' ');
 list_tecplot_varlocation = strjoin(outputQuantity.varlocation,' ');
 if headersMsh_Nnode == 3
-    header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z"'," ", ...
+%     header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
+%         list_tecplot_var,"\n ", ...
+%         'ZONE T="STEP %d"\n N=%d, E=%d, DATAPACKING=BLOCK, ZONETYPE=FETRIANGLE, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
+%         list_tecplot_varlocation,')\n');
+    header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
         list_tecplot_var,"\n ", ...
-        'ZONE T="STEP %d"\n N=%d, E=%d, DATAPACKING=BLOCK, ZONETYPE=FETRIANGLE, VARLOCATION = (NODAL NODAL NODAL '," ", ...
+        'ZONE T="STEP %d"\n N=%d, NV=4, E=%d, DATAPACKING=BLOCK, ZONETYPE=FETRIANGLE, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
         list_tecplot_varlocation,')\n');
 elseif headersMsh_Nnode == 4
-    header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z"'," ", ...
+%     header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
+%         list_tecplot_var,"\n ", ...
+%         'ZONE T="STEP %d"\n N=%d, E=%d, DATAPACKING=BLOCK, ZONETYPE=FEQUADRILATERAL, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
+%         list_tecplot_varlocation,')\n');
+    header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
         list_tecplot_var,"\n ", ...
-        'ZONE T="STEP %d"\n N=%d, E=%d, DATAPACKING=BLOCK, ZONETYPE=FEQUADRILATERAL, VARLOCATION = (NODAL NODAL NODAL '," ", ...
-        list_tecplot_varlocation,')\n');
+        'ZONE T="STEP %d"\n N=%d, NV=4, E=%d, DATAPACKING=BLOCK, ZONETYPE=FEQUADRILATERAL, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
+        list_tecplot_varlocation,')\n');    
 end
 fprintf(fileID,header_tecplot,outputQuantity_step_old,num_nodes,num_elements);
 %
 %% coordinate (x,y,z) loop
-for i=1:3
+for i=1:4
     % node loop
     for j=1:num_nodes
         fprintf(fileID, numformat, msh.nodes(j,i));
@@ -307,9 +317,10 @@ for iquantity=1:nbquantityperstep
     if strcmpi(outputQuantity.type(iquantity),'vector')
         % vector quantity
         if strcmp(outputQuantity.location(iquantity),'OnNodes')
+            % sort the quantity by the nodeID
             orderquantityOnNodes = zeros(length(outputQuantity.dataOnNodes(:,1,iquantity)),4);
-            %orderquantityOnNodes = sortrows(outputQuantity);  % NOTE the multiplication by a scaling factor!!!
-            orderquantityOnNodes = [outputQuantity.dataOnNodes(:,2:4,iquantity), outputQuantity.dataOnNodes(:,1,iquantity)]; % swap node ID to the last column
+            orderquantityOnNodes = sortrows(outputQuantity.dataOnNodes(:,:,iquantity));
+            orderquantityOnNodes = [orderquantityOnNodes(:,2:4), orderquantityOnNodes(:,1)]; % swap node ID to the last column
             for i=1:3
                 % node loop
                 for j=1:num_nodes
@@ -321,9 +332,10 @@ for iquantity=1:nbquantityperstep
                 fprintf(fileID,'\n');
             end
         elseif strcmp(outputQuantity.location(iquantity),'OnGaussPoints')
+            % sort the quantity by the elements
             orderquantityOnGaussPoints = zeros(length(outputQuantity.dataOnGaussPoints(:,1,iquantity)),4);
-            %orderquantityOnGaussPoints = sortrows(outputQuantity);  % NOTE the multiplication by a scaling factor!!!
-            orderquantityOnGaussPoints = [outputQuantity.dataOnGaussPoints(:,2:4,iquantity), outputQuantity.dataOnGaussPoints(:,1,iquantity)]; % swap node ID to the last column
+            orderquantityOnGaussPoints = sortrows(outputQuantity.dataOnGaussPoints(:,:,iquantity));
+            orderquantityOnGaussPoints = [orderquantityOnGaussPoints(:,2:4), orderquantityOnGaussPoints(:,1)]; % swap node ID to the last column
             for i=1:3
                 % element loop
                 for j=1:num_elements
@@ -341,9 +353,10 @@ for iquantity=1:nbquantityperstep
     else
         % scalar quantity
         if strcmp(outputQuantity.location(iquantity),'OnNodes')
+            % sort the quantity by the nodeID
             orderquantityOnNodes = zeros(length(outputQuantity.dataOnNodes(:,1,iquantity)),2);
-            %orderquantityOnNodes = sortrows(outputQuantity);  % NOTE the multiplication by a scaling factor!!!
-            orderquantityOnNodes = [outputQuantity.dataOnNodes(:,2,iquantity), outputQuantity.dataOnNodes(:,1,iquantity)]; % swap node ID to the last column
+            orderquantityOnNodes = sortrows(outputQuantity.dataOnNodes(:,:,iquantity));
+            orderquantityOnNodes = [orderquantityOnNodes(:,2), orderquantityOnNodes(:,1)]; % swap node ID to the last column
             % node loop
             for j=1:num_nodes
                 fprintf(fileID, numformat, orderquantityOnNodes(j,1));
@@ -354,8 +367,8 @@ for iquantity=1:nbquantityperstep
             fprintf(fileID,'\n');
         elseif strcmp(outputQuantity.location(iquantity),'OnGaussPoints')
             orderquantityOnGaussPoints = zeros(length(outputQuantity.dataOnGaussPoints(:,1,iquantity)),2);
-            %orderquantityOnGaussPoints = sortrows(outputQuantity);  % NOTE the multiplication by a scaling factor!!!
-            orderquantityOnGaussPoints = [outputQuantity.dataOnGaussPoints(:,2,iquantity), outputQuantity.dataOnGaussPoints(:,1,iquantity)]; % swap node ID to the last column
+            orderquantityOnGaussPoints = sortrows(outputQuantity.dataOnGaussPoints(:,:,iquantity));
+            orderquantityOnGaussPoints = [orderquantityOnGaussPoints(:,2), orderquantityOnGaussPoints(:,1)]; % swap node ID to the last column
             % element loop
             for j=1:num_elements
                 fprintf(fileID, numformat, orderquantityOnGaussPoints(j,1));
@@ -375,16 +388,18 @@ end % end of output quantity loop
 if headersMsh_Nnode == 3
     for i=1:num_elements
         for j=1:3
-            %fprintf(fileID, '%10d',msh.elements(i,j));
-            fprintf(fileID, '%10d',msh.nodeID2nodeLine(msh.elements(i,j)));
+            fprintf(fileID, '%10d',msh.elements(i,j));
+            % NOT NEEDED if nodeID are passed to tecplot file in combination with NV=4:           
+            %fprintf(fileID, '%10d',msh.nodeID2nodeLine(msh.elements(i,j)));
         end
         fprintf(fileID,'\n');
     end
 elseif headersMsh_Nnode == 4
     for i=1:num_elements
         for j=1:4
-            %fprintf(fileID, '%10d',msh.elements(i,j));
-            fprintf(fileID, '%10d',msh.nodeID2nodeLine(msh.elements(i,j)));
+            fprintf(fileID, '%10d',msh.elements(i,j));
+            % NOT NEEDED if nodeID are passed to tecplot file in combination with NV=4:
+            %fprintf(fileID, '%10d',msh.nodeID2nodeLine(msh.elements(i,j)));
         end
         fprintf(fileID,'\n');
     end
