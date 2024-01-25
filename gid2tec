@@ -11,4 +11,15 @@
 # where 'basename' is the name of the GiD files without the .msh and res suffixes.
 echo "Converting GiD files \"" $1 "\" into Tecplot 360 files..."
 matlab -nojvm -batch "gid2tec('$1')"
+#
+# converting the ASCII Tecplot file into binary Tecplot file
+if ! [ -x "$(command -v preplot)" ]; then
+    echo 'Error: preplot is not installed. Check your Tecplot installation or your PATH.' >&2
+    exit 1
+else
+    for list_ascii_file in `ls ${1}_step_*.dat`
+    do
+        preplot ${list_ascii_file}
+    done
+fi
 echo "DONE."
