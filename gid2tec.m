@@ -87,11 +87,25 @@ block = regexp(block{1},'End','split');
 block(end) = [];
 out = cell(size(block));
 
-if headersMsh_Nnode == 3
+% Carat GiD files contain an additional column with the mesh id.
+% Empire GiD files do not have it
+% To handle that the format used in textscan does not have a %f for the
+% mesh id. In consequence lines with NaN are generated with Carat GiD files.
+% Therefore, a trick with 'isnan' is added after the reading of the
+% elements.
+if headersMsh_Nnode == 2
+    % Linear
+    fprintf('\t>>   The MESH file contains Linear.\n');
+
+    for k = 1:numel(block)
+        out{k} = textscan(block{k},'%f %f %f','delimiter',' ','MultipleDelimsAsOne', 1); % three values
+        out{k} = horzcat(out{k}{:});
+    end
+elseif headersMsh_Nnode == 3
     % Triangle
     fprintf('\t>>   The MESH file contains triangles.\n');
     for k = 1:numel(block)
-        out{k} = textscan(block{k},'%f %f %f %f','delimiter',' ','MultipleDelimsAsOne', 1); % five values
+        out{k} = textscan(block{k},'%f %f %f %f','delimiter',' ','MultipleDelimsAsOne', 1); % four values
         out{k} = horzcat(out{k}{:});
     end
 elseif headersMsh_Nnode == 4
@@ -279,7 +293,16 @@ fileID = fopen(nameFileMeshInfo_tecplot,'w');
 %% create the headers of the tecplot file
 list_tecplot_var = strjoin(outputQuantity.varname,' ');
 list_tecplot_varlocation = strjoin(outputQuantity.varlocation,' ');
-if headersMsh_Nnode == 3
+if headersMsh_Nnode == 2
+%     header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
+%         list_tecplot_var,"\n ", ...
+%         'ZONE T="STEP %d"\n N=%d, E=%d, DATAPACKING=BLOCK, ZONETYPE=FELINESEG, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
+%         list_tecplot_varlocation,')\n');
+    header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
+        list_tecplot_var,"\n ", ...
+        'ZONE T="STEP %d"\n N=%d, NV=4, E=%d, DATAPACKING=BLOCK, ZONETYPE=FELINESEG, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
+        list_tecplot_varlocation,')\n');
+elseif headersMsh_Nnode == 3
 %     header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
 %         list_tecplot_var,"\n ", ...
 %         'ZONE T="STEP %d"\n N=%d, E=%d, DATAPACKING=BLOCK, ZONETYPE=FETRIANGLE, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
@@ -385,7 +408,16 @@ for iquantity=1:nbquantityperstep
 end % end of output quantity loop
 %
 %% connectivity loop
-if headersMsh_Nnode == 3
+if headersMsh_Nnode == 2
+    for i=1:num_elements
+        for j=1:2
+            fprintf(fileID, '%10d',msh.elements(i,j));
+            % NOT NEEDED if nodeID are passed to tecplot file in combination with NV=4:           
+            %fprintf(fileID, '%10d',msh.nodeID2nodeLine(msh.elements(i,j)));
+        end
+        fprintf(fileID,'\n');
+    end
+elseif headersMsh_Nnode == 3
     for i=1:num_elements
         for j=1:3
             fprintf(fileID, '%10d',msh.elements(i,j));
