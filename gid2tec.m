@@ -63,7 +63,7 @@ for k = 1:numel(block)
 end
 msh.nodes = cell2mat(out);
 msh.nodes = [msh.nodes(:,2:end) msh.nodes(:,1)]; % swap node ID to the last column
-num_nodes = length(msh.nodes);
+[num_nodes,~]=size(msh.nodes);
 fprintf('DONE\n');
 
 % NOT NEEDED if nodeID are passed to tecplot file in combination with NV=4:
