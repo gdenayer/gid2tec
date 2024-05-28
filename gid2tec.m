@@ -115,6 +115,13 @@ elseif headersMsh_Nnode == 4
         out{k} = textscan(block{k},'%f %f %f %f %f','delimiter',' ','MultipleDelimsAsOne', 1); % five values
         out{k} = horzcat(out{k}{:});
     end
+elseif headersMsh_Nnode == 8
+    % Hexa/Brick
+    fprintf('\t>>   The MESH file contains hexa.\n');
+    for k = 1:numel(block)
+        out{k} = textscan(block{k},'%f %f %f %f %f %f %f %f %f','delimiter',' ','MultipleDelimsAsOne', 1); % five values
+        out{k} = horzcat(out{k}{:});
+    end
 else
     fprintf('\t>> Error: ElementType not supported.\n');
     return;
@@ -124,7 +131,8 @@ elements = cell2mat(out);
 % remove the lines with NaN
 elements=elements(sum(isnan(elements),2)==0,:);
 msh.elements = elements(:,2:end);
-num_elements = length(msh.elements);
+%num_elements = length(msh.elements);
+[num_elements,~]=size(msh.elements);
 fprintf('\t>> DONE\n');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -319,7 +327,15 @@ elseif headersMsh_Nnode == 4
     header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
         list_tecplot_var,"\n ", ...
         'ZONE T="STEP %d"\n N=%d, NV=4, E=%d, DATAPACKING=BLOCK, ZONETYPE=FEQUADRILATERAL, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
-        list_tecplot_varlocation,')\n');    
+        list_tecplot_varlocation,')\n');
+elseif headersMsh_Nnode == 8
+    header_tecplot=strcat('TITLE = "',basename,'"\n VARIABLES = "X" "Y" "Z" "nodeID"'," ", ...
+        list_tecplot_var,"\n ", ...
+        'ZONE T="STEP %d"\n N=%d, NV=4, E=%d, DATAPACKING=BLOCK, ZONETYPE=FEBRICK, VARLOCATION = (NODAL NODAL NODAL NODAL '," ", ...
+        list_tecplot_varlocation,')\n');
+else
+    fprintf('\t>> Error: ElementType not supported.\n');
+    return
 end
 fprintf(fileID,header_tecplot,outputQuantity_step_old,num_nodes,num_elements);
 %
@@ -429,6 +445,15 @@ elseif headersMsh_Nnode == 3
 elseif headersMsh_Nnode == 4
     for i=1:num_elements
         for j=1:4
+            fprintf(fileID, '%10d',msh.elements(i,j));
+            % NOT NEEDED if nodeID are passed to tecplot file in combination with NV=4:
+            %fprintf(fileID, '%10d',msh.nodeID2nodeLine(msh.elements(i,j)));
+        end
+        fprintf(fileID,'\n');
+    end
+elseif headersMsh_Nnode == 8
+    for i=1:num_elements
+        for j=1:8
             fprintf(fileID, '%10d',msh.elements(i,j));
             % NOT NEEDED if nodeID are passed to tecplot file in combination with NV=4:
             %fprintf(fileID, '%10d',msh.nodeID2nodeLine(msh.elements(i,j)));
